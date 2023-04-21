@@ -2,7 +2,7 @@ import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/pages/conversation_detail_page.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:isar/isar.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key});
@@ -15,9 +15,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
   int? _selectedKey;
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-        valueListenable: DbManager.instance.conversations.listenable(),
-        builder: (context, value, child) => Builder(builder: (context) {
+    return StreamBuilder(
+        stream: DbManager.instance.isar.conversations.where().watch(fireImmediately: true),
+        builder: (context, value) => Builder(builder: (context) {
+              var conversations = value.hasData ? value.data! : <Conversation>[];
               return Row(
                 children: [
                   SizedBox(
@@ -25,17 +26,17 @@ class _ConversationsPageState extends State<ConversationsPage> {
                     child: Scaffold(
                       floatingActionButton: FloatingActionButton(
                           onPressed: () async {
-                            await value.add(Conversation("Nameless"));
+                            DbManager.instance.isar.writeTxn(
+                                () async => DbManager.instance.isar.conversations.put(Conversation("Nameless")));
                           },
                           child: const Icon(Icons.add)),
                       body: ListView.builder(
-                        itemCount: value.keys.length,
+                        itemCount: conversations.length,
                         itemBuilder: (context, index) {
-                          var key = value.keyAt(index);
-                          var conversation = value.getAt(index);
+                          var conversation = conversations[index];
                           return ListTile(
-                            onTap: () => setState(() => _selectedKey = key),
-                            selected: _selectedKey == key,
+                            onTap: () => setState(() => _selectedKey = conversation.id),
+                            selected: _selectedKey == conversation.id,
                             title: Text(conversation!.name),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete),
@@ -73,7 +74,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   _deleteConversation(Conversation conversation) async {
-    await conversation.delete();
+    await DbManager.instance.isar
+        .writeTxn(() async => await DbManager.instance.isar.conversations.delete(conversation.id!));
 
     if (!mounted) return;
 

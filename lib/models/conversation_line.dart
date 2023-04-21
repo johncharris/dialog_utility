@@ -1,26 +1,28 @@
 import 'package:dialog_utility/models/character_pic.dart';
-import 'package:hive/hive.dart';
+import 'package:dialog_utility/models/conversation.dart';
+import 'package:isar/isar.dart';
 
 import 'character.dart';
 
 part 'conversation_line.g.dart';
 
-@HiveType(typeId: 3)
-class ConversationLine extends HiveObject {
-  @HiveField(0)
+@Collection()
+class ConversationLine {
+  Id? id;
   String text;
 
-  @HiveField(1)
+  @Index()
+  int sortOrder = 0;
+
   bool isRichText = false;
 
-  @HiveField(2)
-  Character? character;
+  final character = IsarLink<Character>();
 
-  @HiveField(3)
   String? characterName;
 
-  @HiveField(4)
-  CharacterPic? characterPic;
+  final characterPic = IsarLink<CharacterPic>();
 
-  ConversationLine(this.text, {this.character, this.characterName, this.characterPic});
+  final conversation = IsarLink<Conversation>();
+
+  ConversationLine(this.text, {this.characterName});
 }

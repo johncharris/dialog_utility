@@ -1,20 +1,21 @@
-import 'package:dialog_utility/db_manager.dart';
-import 'package:dialog_utility/models/character_pic.dart';
-import 'package:hive/hive.dart';
+// import 'package:dialog_utility/models/character_pic.dart';
+import 'package:isar/isar.dart';
+
+import 'character_pic.dart';
 
 part 'character.g.dart';
 
-@HiveType(typeId: 0)
-class Character extends HiveObject {
-  @HiveField(0)
-  String name;
+@Collection()
+class Character {
+  Id? id;
 
-  @HiveField(1)
-  String handle;
+  @Index(caseSensitive: false)
+  late String name;
 
-  @HiveField(2)
-  HiveList<CharacterPic> pics;
+  late String handle;
 
-  Character(this.name, this.handle, {HiveList<CharacterPic>? pics})
-      : pics = pics ?? HiveList<CharacterPic>(DbManager.instance.characterPics);
+  @Backlink(to: 'character')
+  final pics = IsarLinks<CharacterPic>();
+
+  Character(this.name, this.handle);
 }

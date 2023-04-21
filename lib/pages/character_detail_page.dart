@@ -4,12 +4,11 @@ import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
 import 'package:dialog_utility/models/character_pic.dart';
 import 'package:flutter/material.dart';
-import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class CharacterDetailPage extends StatefulWidget {
-  const CharacterDetailPage(this.id, {super.key});
-  final int id;
+  const CharacterDetailPage(this.character, {super.key});
+  final Character character;
 
   @override
   State<CharacterDetailPage> createState() => _CharacterDetailPageState();
@@ -21,7 +20,7 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
 
   @override
   void initState() {
-    _character = DbManager.instance.characters.getAt(widget.id)!;
+    _character = widget.character;
     super.initState();
   }
 
@@ -31,6 +30,7 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
       key: _form,
       child: Expanded(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Card(
               child: Container(
@@ -40,9 +40,9 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                   TextFormField(
                     decoration: const InputDecoration(label: Text("Short Name")),
                     initialValue: _character.handle,
-                    onChanged: (value) {
+                    onChanged: (value) async {
                       _character.handle = value;
-                      DbManager.instance.characters.put(widget.id, _character);
+                      await writeCharacter();
                     },
                   ),
                   TextFormField(
@@ -50,82 +50,70 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                     initialValue: _character.name,
                     onChanged: (value) {
                       _character.name = value;
-                      DbManager.instance.characters.put(widget.id, _character);
+                      writeCharacter();
                     },
                   ),
                 ]),
               ),
             ),
             Expanded(
-              child: Stack(children: [
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200),
-                    itemCount: _character.pics.length,
-                    itemBuilder: (context, index) {
-                      var pic = _character.pics[index];
-                      return Card(
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Image.memory(pic.bytes),
-                              Text(
-                                pic.name,
-                                softWrap: false,
-                              )
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: DropRegion(
-                      formats: const [Formats.png, Formats.jpeg, Formats.svg],
-                      onDropOver: (event) => DropOperation.copy,
-                      onPerformDrop: (event) async {
-                        final item = event.session.items.first;
+              child: DropRegion(
+                  formats: const [Formats.png, Formats.jpeg, Formats.svg],
+                  onDropOver: (event) => DropOperation.copy,
+                  onPerformDrop: (event) async {
+                    final item = event.session.items.first;
 
-                        final reader = item.dataReader!;
-                        if (reader.canProvide(Formats.png)) {
-                          reader.getFile(Formats.png, (file) async {
-                            var bytes = await file.readAll();
+                    final reader = item.dataReader!;
+                    if (reader.canProvide(Formats.png)) {
+                      reader.getFile(Formats.png, (file) async {
+                        var bytes = await file.readAll();
 
-                            // Add the file to the box
-                            var pic = CharacterPic(file.fileName ?? '', bytes);
-                            await DbManager.instance.characterPics.add(pic);
-                            _character.pics.add(pic);
-                            await _character.save();
-                          });
-                        }
-                      },
-                      child: const Positioned(
-                        left: 0,
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Padding(
-                          padding: EdgeInsets.all(15.0),
-                          child: Text('Drop items here'),
-                        ),
-                      )),
-                ),
-              ]),
+                        var pic = CharacterPic(file.fileName ?? '', bytes);
+
+                        _character.pics.add(pic);
+                        await DbManager.instance.isar.writeTxn(() async {
+                          await DbManager.instance.isar.characterPics.put(pic);
+                          await DbManager.instance.isar.characters.put(_character);
+                          await _character.pics.save();
+                        });
+                      });
+                    }
+                  },
+                  child: FutureBuilder(
+                      future: _character.pics.load(),
+                      builder: (context, snapshot) {
+                        var pics = _character.pics.toList();
+                        return GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200),
+                          itemCount: pics.length,
+                          itemBuilder: (context, index) {
+                            var pic = pics[index];
+                            return Card(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.memory(Uint8List.fromList(pic.bytes)),
+                                    Text(
+                                      pic.name,
+                                      softWrap: false,
+                                    )
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      })),
             )
           ],
         ),
       ),
     );
+  }
+
+  Future writeCharacter() async {
+    await DbManager.instance.isar.writeTxn(() async => await DbManager.instance.isar.characters.put(_character));
   }
 }

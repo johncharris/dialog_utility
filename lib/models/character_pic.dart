@@ -1,16 +1,16 @@
-import 'dart:typed_data';
-
-import 'package:hive/hive.dart';
+import 'package:dialog_utility/models/character.dart';
+import 'package:isar/isar.dart';
 
 part 'character_pic.g.dart';
 
-@HiveType(typeId: 1)
-class CharacterPic extends HiveObject {
-  @HiveField(0)
-  String name;
+@Collection()
+class CharacterPic {
+  Id? id;
+  late String name;
 
-  @HiveField(1)
-  Uint8List bytes;
+  late List<byte> bytes;
+
+  final character = IsarLink<Character>();
 
   CharacterPic(this.name, this.bytes);
 }
