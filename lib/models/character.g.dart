@@ -55,6 +55,12 @@ const CharacterSchema = CollectionSchema(
       target: r'CharacterPic',
       single: false,
       linkName: r'character',
+    ),
+    r'defaultPic': LinkSchema(
+      id: 6160884349232934060,
+      name: r'defaultPic',
+      target: r'CharacterPic',
+      single: true,
     )
   },
   embeddedSchemas: {},
@@ -120,12 +126,14 @@ Id _characterGetId(Character object) {
 }
 
 List<IsarLinkBase<dynamic>> _characterGetLinks(Character object) {
-  return [object.pics];
+  return [object.pics, object.defaultPic];
 }
 
 void _characterAttach(IsarCollection<dynamic> col, Id id, Character object) {
   object.id = id;
   object.pics.attach(col, col.isar.collection<CharacterPic>(), r'pics', id);
+  object.defaultPic
+      .attach(col, col.isar.collection<CharacterPic>(), r'defaultPic', id);
 }
 
 extension CharacterQueryWhereSort
@@ -641,6 +649,19 @@ extension CharacterQueryLinks
     return QueryBuilder.apply(this, (query) {
       return query.linkLength(
           r'pics', lower, includeLower, upper, includeUpper);
+    });
+  }
+
+  QueryBuilder<Character, Character, QAfterFilterCondition> defaultPic(
+      FilterQuery<CharacterPic> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.link(q, r'defaultPic');
+    });
+  }
+
+  QueryBuilder<Character, Character, QAfterFilterCondition> defaultPicIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.linkLength(r'defaultPic', 0, true, 0, true);
     });
   }
 }

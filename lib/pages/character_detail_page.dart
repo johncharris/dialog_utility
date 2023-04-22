@@ -94,7 +94,28 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Image.memory(Uint8List.fromList(pic.bytes)),
+                                    Expanded(
+                                      child: Stack(
+                                        children: [
+                                          Image.memory(Uint8List.fromList(pic.bytes)),
+                                          Positioned(
+                                              left: 0,
+                                              top: 0,
+                                              child: IconButton(
+                                                onPressed: () {
+                                                  _character.defaultPic.value = pic;
+                                                  writeCharacter(defaultPic: true);
+                                                },
+                                                icon: Icon(
+                                                  _character.defaultPic.value?.id == pic.id
+                                                      ? Icons.star
+                                                      : Icons.star_border,
+                                                  color: Colors.yellow,
+                                                ),
+                                              )),
+                                        ],
+                                      ),
+                                    ),
                                     Text(
                                       pic.name,
                                       softWrap: false,
@@ -113,7 +134,14 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
     );
   }
 
-  Future writeCharacter() async {
-    await DbManager.instance.isar.writeTxn(() async => await DbManager.instance.isar.characters.put(_character));
+  Future writeCharacter({bool defaultPic = false}) async {
+    await DbManager.instance.isar.writeTxn(() async {
+      await DbManager.instance.isar.characters.put(_character);
+
+      if (defaultPic) {
+        await DbManager.instance.isar.characterPics.put(_character.defaultPic.value!);
+        _character.defaultPic.save();
+      }
+    });
   }
 }

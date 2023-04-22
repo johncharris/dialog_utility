@@ -17,5 +17,7 @@ class Character {
   @Backlink(to: 'character')
   final pics = IsarLinks<CharacterPic>();
 
+  final defaultPic = IsarLink<CharacterPic>();
+
   Character(this.name, this.handle);
 }
