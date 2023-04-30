@@ -1,28 +1,22 @@
-import 'package:dialog_utility/models/character_pic.dart';
-import 'package:dialog_utility/models/conversation.dart';
-import 'package:isar/isar.dart';
-
-import 'character.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 part 'conversation_line.g.dart';
 
-@Collection()
+@JsonSerializable(explicitToJson: true)
 class ConversationLine {
-  Id? id;
   String text;
 
-  @Index()
   int sortOrder = 0;
 
   bool isRichText = false;
 
-  final character = IsarLink<Character>();
-
+  String? characterId;
   String? characterName;
 
-  final characterPic = IsarLink<CharacterPic>();
+  String? characterPicId;
 
-  final conversation = IsarLink<Conversation>();
+  ConversationLine(this.text, {this.characterId, this.characterName});
 
-  ConversationLine(this.text, {this.characterName});
+  factory ConversationLine.fromJson(Map<String, dynamic> json) => _$ConversationLineFromJson(json);
+  Map<String, dynamic> toJson() => _$ConversationLineToJson(this);
 }

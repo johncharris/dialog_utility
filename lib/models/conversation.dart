@@ -1,15 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/models/conversation_line.dart';
-import 'package:isar/isar.dart';
+
+import 'package:json_annotation/json_annotation.dart';
 
 part 'conversation.g.dart';
 
-@Collection()
+@JsonSerializable(explicitToJson: true)
 class Conversation {
-  Id? id;
+  String? id;
   String name;
 
-  @Backlink(to: 'conversation')
-  final lines = IsarLinks<ConversationLine>();
+  List<ConversationLine> lines;
 
-  Conversation(this.name);
+  Conversation({required this.name, required this.lines});
+
+  factory Conversation.fromJson(Map<String, dynamic> json) => _$ConversationFromJson(json);
+  Map<String, dynamic> toJson() => _$ConversationToJson(this);
 }

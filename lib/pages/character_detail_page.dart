@@ -1,10 +1,10 @@
 import 'dart:typed_data';
-
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
-import 'package:dialog_utility/models/character_pic.dart';
+import 'package:dialog_utility/models/character_picture.dart';
 import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class CharacterDetailPage extends StatefulWidget {
   const CharacterDetailPage(this.character, {super.key});
@@ -66,67 +66,69 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                     final reader = item.dataReader!;
                     if (reader.canProvide(Formats.png)) {
                       reader.getFile(Formats.png, (file) async {
-                        var bytes = await file.readAll();
+                        var fileStream = file.getStream();
+                        var bytes = await fileStream.first;
+                        // upload image to Firebase Storage
+                        Reference storageRef =
+                            FirebaseStorage.instance.ref().child('characterPictures/${uuid.v4()}.png');
+                        UploadTask uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: "image/png"));
+                        TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
 
-                        var pic = CharacterPic(file.fileName ?? '', bytes);
+                        // get image URL
+                        String imageUrl = await snapshot.ref.getDownloadURL();
 
-                        _character.pics.add(pic);
-                        await DbManager.instance.isar.writeTxn(() async {
-                          await DbManager.instance.isar.characterPics.put(pic);
-                          await DbManager.instance.isar.characters.put(_character);
-                          await _character.pics.save();
-                        });
+                        var pic = CharacterPicture(id: uuid.v4(), imageUrl: imageUrl, description: '');
+
+                        _character.pictures.add(pic);
+
+                        await charactersRef.doc(_character.id).set(_character.toJson());
                       });
                     }
                   },
-                  child: FutureBuilder(
-                      future: _character.pics.load(),
-                      builder: (context, snapshot) {
-                        var pics = _character.pics.toList();
-                        return GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200),
-                          itemCount: pics.length,
-                          itemBuilder: (context, index) {
-                            var pic = pics[index];
-                            return Card(
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Expanded(
-                                      child: Stack(
-                                        children: [
-                                          Image.memory(Uint8List.fromList(pic.bytes)),
-                                          Positioned(
-                                              left: 0,
-                                              top: 0,
-                                              child: IconButton(
-                                                onPressed: () {
-                                                  _character.defaultPic.value = pic;
-                                                  writeCharacter(defaultPic: true);
-                                                },
-                                                icon: Icon(
-                                                  _character.defaultPic.value?.id == pic.id
-                                                      ? Icons.star
-                                                      : Icons.star_border,
-                                                  color: Colors.yellow,
-                                                ),
-                                              )),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      pic.name,
-                                      softWrap: false,
-                                    )
-                                  ],
+                  child: Builder(builder: (context) {
+                    var pics = _character.pictures;
+                    return GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200),
+                      itemCount: pics.length,
+                      itemBuilder: (context, index) {
+                        var pic = pics[index];
+                        return Card(
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Expanded(
+                                  child: Stack(
+                                    children: [
+                                      Image.network(pic.imageUrl),
+                                      Positioned(
+                                          left: 0,
+                                          top: 0,
+                                          child: IconButton(
+                                            onPressed: () {
+                                              _character.defaultPictureId = pic.id;
+                                              writeCharacter();
+                                            },
+                                            icon: Icon(
+                                              _character.defaultPictureId == pic.id ? Icons.star : Icons.star_border,
+                                              color: Colors.yellow,
+                                            ),
+                                          )),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                                Text(
+                                  pic.description,
+                                  softWrap: false,
+                                )
+                              ],
+                            ),
+                          ),
                         );
-                      })),
+                      },
+                    );
+                  })),
             )
           ],
         ),
@@ -134,14 +136,11 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
     );
   }
 
-  Future writeCharacter({bool defaultPic = false}) async {
-    await DbManager.instance.isar.writeTxn(() async {
-      await DbManager.instance.isar.characters.put(_character);
-
-      if (defaultPic) {
-        await DbManager.instance.isar.characterPics.put(_character.defaultPic.value!);
-        _character.defaultPic.save();
-      }
-    });
+  Future writeCharacter() async {
+    try {
+      await charactersRef.doc(_character.id).set(_character.toJson());
+    } catch (ex) {
+      print(ex);
+    }
   }
 }

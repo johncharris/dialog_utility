@@ -1,8 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
 import 'package:dialog_utility/pages/character_detail_page.dart';
 import 'package:flutter/material.dart';
-import 'package:isar/isar.dart';
 
 class CharactersPage extends StatefulWidget {
   const CharactersPage({super.key});
@@ -16,9 +16,11 @@ class _CharactersPageState extends State<CharactersPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: DbManager.instance.isar.characters.where().watch(fireImmediately: true),
+      stream: FirebaseFirestore.instance.collection('characters').snapshots(),
       builder: (context, snapshot) {
-        final characters = snapshot.hasData ? snapshot.data! : <Character>[];
+        final characters = snapshot.hasData
+            ? snapshot.data!.docs.map((e) => Character.fromJson(e.data())..id = e.id).toList()
+            : <Character>[];
         return Row(
           children: [
             SizedBox(
@@ -26,8 +28,7 @@ class _CharactersPageState extends State<CharactersPage> {
               child: Scaffold(
                 floatingActionButton: FloatingActionButton(
                     onPressed: () async {
-                      await DbManager.instance.isar.writeTxn(
-                          () async => await DbManager.instance.isar.characters.put(Character("Nameless", "empty")));
+                      var ref = await charactersRef.add(Character(name: 'unnamed', handle: '', pictures: []).toJson());
                     },
                     child: const Icon(Icons.add)),
                 body: ListView.builder(
@@ -73,10 +74,10 @@ class _CharactersPageState extends State<CharactersPage> {
   }
 
   _deleteCharacter(Character character) async {
-    await DbManager.instance.isar.writeTxn(() async => await DbManager.instance.isar.characters.delete(character.id!));
+    // await DbManager.instance.isar.writeTxn((isar) async => await isar.characters.delete(character.id));
 
-    if (!mounted) return;
+    // if (!mounted) return;
 
-    Navigator.pop(context);
+    // Navigator.pop(context);
   }
 }

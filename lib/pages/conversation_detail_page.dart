@@ -2,17 +2,17 @@ import 'dart:typed_data';
 
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
-import 'package:dialog_utility/models/character_pic.dart';
+import 'package:dialog_utility/models/character_picture.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/models/conversation_line.dart';
 import 'package:dialog_utility/pages/character_pic_select_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:isar/isar.dart';
+
 import 'package:darq/darq.dart';
 
 class ConversationDetailPage extends StatefulWidget {
   const ConversationDetailPage(this.id, {super.key});
-  final int id;
+  final String id;
 
   @override
   State<ConversationDetailPage> createState() => _ConversationDetailPageState();
@@ -25,22 +25,23 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: DbManager.instance.isar.conversations.watchObject(widget.id, fireImmediately: true),
+        stream: conversationsRef.doc(widget.id).snapshots(),
         builder: (context, value) => StreamBuilder(
-              stream: DbManager.instance.isar.characters.where().watch(fireImmediately: true),
+              stream: charactersRef.snapshots(),
               builder: (context, charactersSnapshot) {
                 if (!value.hasData || !charactersSnapshot.hasData) return Container();
 
-                final conversation = value.data!;
+                final characters = charactersSnapshot.data!.docs
+                    .map((e) => Character.fromJson(e.data() as Map<String, dynamic>)..id = e.id)
+                    .toList();
+                final conversation = Conversation.fromJson(value.data!.data() as Map<String, dynamic>)
+                  ..id = value.data!.id;
                 return Scaffold(
                   floatingActionButton: FloatingActionButton(
                       onPressed: () async {
                         var line = ConversationLine('');
                         conversation.lines.add(line);
-                        await DbManager.instance.isar.writeTxn(() async {
-                          await DbManager.instance.isar.conversationLines.put(line);
-                          await conversation.lines.save();
-                        });
+                        _saveConversation(conversation);
                       },
                       child: const Icon(Icons.add)),
                   body: Row(
@@ -60,55 +61,52 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                               ),
                             ),
                             Expanded(
-                              child: FutureBuilder(
-                                  future: conversation.lines.load(),
-                                  builder: (context, _) {
-                                    var lines = conversation.lines.orderBy((element) => element.sortOrder).toList();
-                                    return ListView.builder(
-                                        itemCount: lines.length,
-                                        itemBuilder: (context, index) {
-                                          var line = lines[index];
-                                          return FutureBuilder(
-                                              future: line.character.load(),
-                                              builder: (context, _) {
-                                                return Container(
-                                                    decoration: BoxDecoration(
-                                                        gradient: LinearGradient(
-                                                            colors: [Colors.transparent, Colors.grey.withAlpha(32)],
-                                                            stops: const [0, 1],
-                                                            begin: Alignment.topCenter,
-                                                            end: Alignment.bottomCenter)),
-                                                    child: InkWell(
-                                                      onTap: () => setState(() => _selectedLine = line),
-                                                      child: Row(children: [
-                                                        SizedBox(
-                                                          width: 100,
-                                                          child: Column(
-                                                            children: [
-                                                              _getLineImage(line, charactersSnapshot.data!),
-                                                              Text(
-                                                                ((line.characterName ?? '').isNotEmpty)
-                                                                    ? line.characterName!
-                                                                    : line.character.value?.name ?? '',
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        Expanded(
-                                                            child: Container(
-                                                          margin: const EdgeInsets.all(8),
-                                                          padding: const EdgeInsets.all(8),
-                                                          decoration: BoxDecoration(
-                                                              borderRadius: BorderRadius.circular(10),
-                                                              color: Colors.blue),
-                                                          child: Text(line.text),
-                                                        ))
-                                                      ]),
-                                                      // selected: _selectedLine == line,
-                                                    ));
-                                              });
-                                        });
-                                  }),
+                              child: Builder(builder: (context) {
+                                var lines = conversation.lines.orderBy((element) => element.sortOrder).toList();
+                                return ListView.builder(
+                                    itemCount: lines.length,
+                                    itemBuilder: (context, index) {
+                                      var line = lines[index];
+                                      return Container(
+                                          decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                  colors: [Colors.transparent, Colors.grey.withAlpha(32)],
+                                                  stops: const [0, 1],
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter)),
+                                          child: InkWell(
+                                            onTap: () => setState(() => _selectedLine = line),
+                                            child: Row(children: [
+                                              SizedBox(
+                                                width: 100,
+                                                child: Column(
+                                                  children: [
+                                                    _getLineImage(line, characters),
+                                                    Text(
+                                                      ((line.characterName ?? '').isNotEmpty)
+                                                          ? line.characterName!
+                                                          : characters
+                                                                  .firstWhereOrDefault(
+                                                                      (value) => value.id == line.characterId)
+                                                                  ?.name ??
+                                                              '',
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                  child: Container(
+                                                margin: const EdgeInsets.all(8),
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(10), color: Colors.blue),
+                                                child: Text(line.text),
+                                              ))
+                                            ]),
+                                            // selected: _selectedLine == line,
+                                          ));
+                                    });
+                              }),
                             ),
                             ExpansionTile(
                               title: const Text("Import Dialog"),
@@ -126,7 +124,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                                           ),
                                         ),
                                         IconButton(
-                                            onPressed: () => _importDialog(conversation, charactersSnapshot.data!),
+                                            onPressed: () => _importDialog(conversation, characters),
                                             icon: const Icon(Icons.send))
                                       ],
                                     ),
@@ -141,7 +139,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                         const SizedBox(
                           width: 400,
                         ),
-                      if (_selectedLine != null) _getLineEditor(charactersSnapshot.data!)
+                      if (_selectedLine != null) _getLineEditor(conversation, characters)
                     ],
                   ),
                 );
@@ -150,10 +148,10 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   }
 
   _saveConversation(Conversation conversation) async {
-    await DbManager.instance.isar.writeTxn(() async => await DbManager.instance.isar.conversations.put(conversation));
+    await conversationsRef.doc(conversation.id).set(conversation.toJson());
   }
 
-  SizedBox _getLineEditor(List<Character> characters) {
+  SizedBox _getLineEditor(Conversation conversation, List<Character> characters) {
     return SizedBox(
       key: ValueKey(_selectedLine),
       width: 400,
@@ -162,18 +160,17 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
         child: Column(
           children: [
             InkWell(
-              onTap: () =>
-                  _selectedLine!.character.value == null ? null : _showCharacterPicSelectDialog(_selectedLine!),
+              onTap: () => _selectedLine!.characterId == null ? null : _showCharacterPicSelectDialog(_selectedLine!),
               child: SizedBox(height: 300, width: 300, child: _getLineImage(_selectedLine!, characters)),
             ),
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<int>(
+                  child: DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "Character"),
-                      value: _selectedLine!.character.value?.id,
+                      value: _selectedLine!.characterId,
                       items: [
-                            const DropdownMenuItem<int>(
+                            const DropdownMenuItem<String>(
                               value: null,
                               child: Text(''),
                             )
@@ -185,10 +182,8 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                                   ))
                               .toList(),
                       onChanged: (newValue) async {
-                        _selectedLine!.character.value =
-                            characters.firstWhereOrDefault((element) => element.id == newValue);
-                        _saveLine(character: true);
-                        setState(() {});
+                        _selectedLine!.characterId = newValue;
+                        _saveLine(conversation);
                       }),
                 ),
                 Expanded(
@@ -196,24 +191,25 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                     initialValue: _selectedLine!.characterName,
                     onChanged: (value) async {
                       _selectedLine!.characterName = value;
-                      await _saveLine();
-                      setState(() {});
                     },
+                    onEditingComplete: () => _saveLine(conversation),
                     decoration: const InputDecoration(labelText: "Name Override"),
                   ),
                 )
               ],
             ),
             TextFormField(
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                initialValue: _selectedLine!.text,
-                minLines: 10,
-                maxLines: 20,
-                onChanged: (newValue) async {
-                  _selectedLine!.text = newValue;
-                  await _saveLine();
-                  setState(() {});
-                })
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              initialValue: _selectedLine!.text,
+              minLines: 10,
+              maxLines: 20,
+              onChanged: (newValue) async {
+                _selectedLine!.text = newValue;
+                await _saveLine(conversation);
+                setState(() {});
+              },
+              onEditingComplete: () async => await _saveLine(conversation),
+            )
           ],
         ),
       ),
@@ -221,50 +217,32 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   }
 
   Widget _getLineImage(ConversationLine line, List<Character> characters) {
-    var character = characters.firstWhereOrDefault((c) => c.id == line.character.value?.id);
+    var character = characters.firstWhereOrDefault((c) => c.id == line.characterId);
 
-    return FutureBuilder(
-      future: line.characterPic.load(),
-      builder: (context, snapshot) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!line.characterPic.isLoaded ||
-              (line.characterPic.value == null && line.character.value?.defaultPic.value == null))
-            const Icon(
-              Icons.person,
-            ),
-          if (line.characterPic.isLoaded &&
-              line.characterPic.value == null &&
-              line.character.value?.defaultPic.value != null)
-            FutureBuilder(
-                future: character?.defaultPic.load(),
-                builder: (context, _) {
-                  return Image.memory(
-                    Uint8List.fromList(line.character.value!.defaultPic.value!.bytes),
-                    fit: BoxFit.contain,
-                  );
-                }),
-          if (line.characterPic.isLoaded && line.characterPic.value != null)
-            Image.memory(Uint8List.fromList(line.characterPic.value!.bytes)),
-        ],
-      ),
-    );
+    String url = '';
+    if (line.characterPicId != null) {
+      url = characters
+              .expand((element) => element.pictures)
+              .firstWhereOrDefault((value) => value.id == line.characterPicId)
+              ?.imageUrl ??
+          '';
+    }
+    if (url.isEmpty && character != null) {
+      url = characters
+              .expand((element) => element.pictures)
+              .firstWhereOrDefault((value) => value.id == character.defaultPictureId)
+              ?.imageUrl ??
+          '';
+    }
+
+    return Image.network(url);
   }
 
-  Future _saveLine({bool character = false, characterPic = false}) async {
-    if (_selectedLine == null) return;
-
-    await DbManager.instance.isar.writeTxn(() async {
-      if (character) await _selectedLine!.character.save();
-      if (characterPic) await _selectedLine!.characterPic.save();
-
-      DbManager.instance.isar.conversationLines.put(_selectedLine!);
-    });
+  Future _saveLine(Conversation conversation) async {
+    await conversationsRef.doc(conversation.id).set(conversation.toJson());
   }
 
   _importDialog(Conversation conversation, List<Character> characters) async {
-    final allCharacters = await DbManager.instance.isar.characters.where().findAll();
-
     final newLines = <ConversationLine>[];
 
     for (var line in _dialog.split('\n').map((e) => e.trim()).where((element) => element.isNotEmpty).toList()) {
@@ -275,10 +253,9 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
       if (lineParts.length > 1) {
         characterName = lineParts.first.trim();
 
-        character = allCharacters.cast().firstWhere(
-              (element) => element.handle == characterName,
-              orElse: () => null,
-            );
+        character = characters.firstWhereOrDefault(
+          (element) => element.handle.toUpperCase() == characterName?.toUpperCase(),
+        );
 
         if (character != null) {
           characterName = null;
@@ -289,10 +266,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
         text = line;
       }
 
-      var conversationLine = ConversationLine(
-        text,
-        characterName: characterName,
-      )..character.value = character;
+      var conversationLine = ConversationLine(text, characterName: characterName, characterId: character?.id);
       newLines.add(conversationLine);
     }
 
@@ -301,26 +275,19 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
       line.sortOrder = index++;
       conversation.lines.add(line);
     }
-    await DbManager.instance.isar.writeTxn(() async {
-      await DbManager.instance.isar.conversationLines.putAll(newLines);
-      for (var line in newLines) {
-        await line.character.save();
-      }
-      await conversation.lines.save();
-    });
 
     await _saveConversation(conversation);
   }
 
   _showCharacterPicSelectDialog(ConversationLine conversationLine) async {
-    var selected = await showDialog<CharacterPic>(
-      context: context,
-      builder: (context) => CharacterPicSelectDialog(conversationLine),
-    );
+    //   var selected = await showDialog<CharacterPicture>(
+    //     context: context,
+    //     builder: (context) => CharacterPicSelectDialog(conversationLine),
+    //   );
 
-    if (selected != null) {
-      _selectedLine!.characterPic.value = selected;
-      await _saveLine(characterPic: true);
-    }
+    //   if (selected != null) {
+    //     _selectedLine!.characterPic.value = selected;
+    //     await _saveLine(characterPic: true);
+    //   }
   }
 }

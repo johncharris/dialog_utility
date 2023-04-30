@@ -1,23 +1,7 @@
-import 'package:dialog_utility/models/character.dart';
-import 'package:dialog_utility/models/character_pic.dart';
-import 'package:dialog_utility/models/conversation.dart';
-import 'package:dialog_utility/models/conversation_line.dart';
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
-class DbManager {
-  static DbManager instance = DbManager();
+CollectionReference conversationsRef = FirebaseFirestore.instance.collection('conversations');
+CollectionReference charactersRef = FirebaseFirestore.instance.collection('characters');
 
-  late Isar _isar;
-  Isar get isar => _isar;
-
-  init() async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      _isar = await Isar.open([CharacterSchema, CharacterPicSchema, ConversationSchema, ConversationLineSchema],
-          directory: dir.path);
-    } catch (ex) {
-      print(ex);
-    }
-  }
-}
+const uuid = Uuid();

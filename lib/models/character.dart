@@ -1,23 +1,23 @@
-// import 'package:dialog_utility/models/character_pic.dart';
-import 'package:isar/isar.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-import 'character_pic.dart';
+import 'character_picture.dart';
 
 part 'character.g.dart';
 
-@Collection()
+@JsonSerializable(explicitToJson: true)
 class Character {
-  Id? id;
+  String? id;
 
-  @Index(caseSensitive: false)
-  late String name;
+  String name;
 
-  late String handle;
+  String handle;
 
-  @Backlink(to: 'character')
-  final pics = IsarLinks<CharacterPic>();
+  List<CharacterPicture> pictures;
 
-  final defaultPic = IsarLink<CharacterPic>();
+  String? defaultPictureId;
 
-  Character(this.name, this.handle);
+  Character({this.id, required this.name, required this.handle, required this.pictures});
+
+  factory Character.fromJson(Map<String, dynamic> json) => _$CharacterFromJson(json);
+  Map<String, dynamic> toJson() => _$CharacterToJson(this);
 }

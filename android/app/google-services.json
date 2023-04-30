@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "69535469589",
+    "project_id": "dialog-manager-9f243",
+    "storage_bucket": "dialog-manager-9f243.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:69535469589:android:ba4afee57cd7a2e35fbe1c",
+        "android_client_info": {
+          "package_name": "com.example.dialog_utility"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "69535469589-r74gg0of34ahlqdsaard9odk92i509jq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbBmQz3mMWxDX4L8PVsoXrp7h6iMmKLyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "69535469589-r74gg0of34ahlqdsaard9odk92i509jq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "69535469589-gau1i29ijv6m8b6uumgi6pa5n8lg5g4b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.dialogUtility"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
