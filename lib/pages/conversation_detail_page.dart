@@ -235,6 +235,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
           '';
     }
 
+    if (url.isEmpty) return Container();
     return Image.network(url);
   }
 

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
 import 'package:dialog_utility/models/character_picture.dart';
