@@ -1,17 +1,20 @@
-import 'dart:typed_data';
-
 import 'package:dialog_utility/db_manager.dart';
+import 'package:dialog_utility/dialogs/share_conversation_dialog.dart';
 import 'package:dialog_utility/models/character.dart';
-import 'package:dialog_utility/models/character_picture.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/models/conversation_line.dart';
-import 'package:dialog_utility/pages/character_pic_select_dialog.dart';
+import 'package:dialog_utility/models/project.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import 'package:darq/darq.dart';
+import 'package:super_clipboard/super_clipboard.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:dialog_utility/color_extensions.dart';
 
 class ConversationDetailPage extends StatefulWidget {
-  const ConversationDetailPage(this.id, {super.key});
+  const ConversationDetailPage(this.project, this.id, {super.key});
+  final Project project;
   final String id;
 
   @override
@@ -25,9 +28,9 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: conversationsRef.doc(widget.id).snapshots(),
+        stream: widget.project.conversationsRef.doc(widget.id).snapshots(),
         builder: (context, value) => StreamBuilder(
-              stream: charactersRef.snapshots(),
+              stream: widget.project.charactersRef.snapshots(),
               builder: (context, charactersSnapshot) {
                 if (!value.hasData || !charactersSnapshot.hasData) return Container();
 
@@ -49,17 +52,6 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                       Expanded(
                         child: Column(
                           children: [
-                            SizedBox(
-                              width: 200,
-                              child: TextFormField(
-                                decoration: const InputDecoration(hintText: "Conversation Name"),
-                                initialValue: conversation.name,
-                                onChanged: (newValue) {
-                                  conversation.name = newValue;
-                                  _saveConversation(conversation);
-                                },
-                              ),
-                            ),
                             Expanded(
                               child: Builder(builder: (context) {
                                 var lines = conversation.lines.orderBy((element) => element.sortOrder).toList();
@@ -135,10 +127,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                           ],
                         ),
                       ),
-                      if (_selectedLine == null)
-                        const SizedBox(
-                          width: 400,
-                        ),
+                      if (_selectedLine == null) _getConversationEditor(conversation),
                       if (_selectedLine != null) _getLineEditor(conversation, characters)
                     ],
                   ),
@@ -148,7 +137,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   }
 
   _saveConversation(Conversation conversation) async {
-    await conversationsRef.doc(conversation.id).set(conversation.toJson());
+    await widget.project.conversationsRef.doc(conversation.id).set(conversation.toJson());
   }
 
   SizedBox _getLineEditor(Conversation conversation, List<Character> characters) {
@@ -193,9 +182,10 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
                       _selectedLine!.characterName = value;
                     },
                     onEditingComplete: () => _saveLine(conversation),
+                    onTapOutside: (event) => _saveLine(conversation),
                     decoration: const InputDecoration(labelText: "Name Override"),
                   ),
-                )
+                ),
               ],
             ),
             TextFormField(
@@ -205,10 +195,11 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
               maxLines: 20,
               onChanged: (newValue) async {
                 _selectedLine!.text = newValue;
-                await _saveLine(conversation);
-                setState(() {});
+                conversation.lines.firstWhere((element) => element.sortOrder == _selectedLine!.sortOrder).text =
+                    newValue;
               },
               onEditingComplete: () async => await _saveLine(conversation),
+              onTapOutside: (event) => _saveLine(conversation),
             )
           ],
         ),
@@ -240,7 +231,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
   }
 
   Future _saveLine(Conversation conversation) async {
-    await conversationsRef.doc(conversation.id).set(conversation.toJson());
+    await widget.project.conversationsRef.doc(conversation.id).set(conversation.toJson());
   }
 
   _importDialog(Conversation conversation, List<Character> characters) async {
@@ -290,5 +281,101 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> {
     //     _selectedLine!.characterPic.value = selected;
     //     await _saveLine(characterPic: true);
     //   }
+  }
+
+  Widget _getConversationEditor(Conversation conversation) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      width: 400,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  decoration: const InputDecoration(labelText: "Conversation Name"),
+                  initialValue: conversation.name,
+                  onChanged: (newValue) {
+                    conversation.name = newValue;
+                    _saveConversation(conversation);
+                  },
+                ),
+              ),
+              IconButton(
+                  onPressed: () => showDialog(
+                        context: context,
+                        builder: (context) =>
+                            ShareConversationDialog(projectId: widget.project.id, conversation: conversation),
+                      ),
+                  icon: const Icon(Icons.share))
+            ],
+          ),
+          FittedBox(
+            child: SizedBox(
+              width: 1920,
+              height: 1080,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DropRegion(
+                        formats: const [Formats.png, Formats.jpeg, Formats.svg],
+                        onDropOver: (event) => DropOperation.copy,
+                        onPerformDrop: (event) async {
+                          final item = event.session.items.first;
+
+                          final reader = item.dataReader!;
+                          await _saveBackground(conversation, reader);
+                        },
+                        child: Image.network(
+                          conversation.backgroundUrl,
+                          fit: BoxFit.cover,
+                        )),
+                  ),
+                  Positioned(
+                      left: 0,
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        height: 360,
+                        color: HexColor.fromHex(conversation.textAreaBackgroundColor),
+                      ))
+                ],
+              ),
+            ),
+          ),
+          TextFormField(
+            initialValue: conversation.textAreaBackgroundColor,
+            onChanged: (value) {
+              conversation.textAreaBackgroundColor = value;
+              _saveConversation(conversation);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future _saveBackground(Conversation conversation, DataReader reader) async {
+    for (var format in [Formats.png, Formats.svg, Formats.jpeg]) {
+      if (reader.canProvide(format)) {
+        reader.getFile(format, (file) async {
+          String ext = file.fileName!.substring(file.fileName!.lastIndexOf('.') + 1);
+          var fileStream = file.readAll();
+          var bytes = await fileStream;
+          // upload image to Firebase Storage
+          Reference storageRef = FirebaseStorage.instance.ref().child('backgrounds/${uuid.v4()}.$ext');
+          UploadTask uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: "image/$ext"));
+          TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
+
+          // get image URL
+          var u = await snapshot.ref.getDownloadURL();
+          setState(() {
+            conversation.backgroundUrl = u;
+          });
+
+          await _saveConversation(conversation);
+        });
+      }
+    }
   }
 }

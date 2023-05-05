@@ -1,10 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/models/conversation.dart';
+import 'package:dialog_utility/models/project.dart';
 import 'package:dialog_utility/widgets/conversation_viewer.dart';
 import 'package:flutter/material.dart';
 
+import '../models/character.dart';
+
 class ConversationViewerPage extends StatefulWidget {
-  const ConversationViewerPage({super.key});
+  const ConversationViewerPage(this.project, {super.key});
+  final Project project;
 
   @override
   State<ConversationViewerPage> createState() => _ConversationViewerPageState();
@@ -14,18 +17,23 @@ class _ConversationViewerPageState extends State<ConversationViewerPage> {
   String? _selectedKey;
   ConversationViewerController? _viewerController;
 
-  CollectionReference conversationsRef = FirebaseFirestore.instance.collection('conversations');
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: conversationsRef.snapshots(),
-        builder: (context, value) => Builder(builder: (context) {
+        stream: widget.project.conversationsRef.snapshots(),
+        builder: (context, value) => StreamBuilder(
+            stream: widget.project.charactersRef.snapshots(),
+            builder: (context, charactersSnapshot) {
               var conversations = value.hasData
                   ? value.data!.docs
                       .map((e) => Conversation.fromJson(e.data() as Map<String, dynamic>)..id = e.id)
                       .toList()
                   : <Conversation>[];
+              var characters = charactersSnapshot.hasData
+                  ? charactersSnapshot.data!.docs
+                      .map((e) => Character.fromJson(e.data() as dynamic)..id = e.id)
+                      .toList()
+                  : <Character>[];
               return Row(
                 children: [
                   SizedBox(
@@ -38,7 +46,7 @@ class _ConversationViewerPageState extends State<ConversationViewerPage> {
                           return ListTile(
                             onTap: () {
                               setState(() => _selectedKey = conversation.id);
-                              _viewerController = ConversationViewerController(conversation.id!);
+                              _viewerController = ConversationViewerController(conversation, characters);
                             },
                             selected: _selectedKey == conversation.id,
                             title: Text(conversation.name),

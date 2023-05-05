@@ -12,7 +12,12 @@ class Conversation {
 
   List<ConversationLine> lines;
 
-  Conversation({required this.name, required this.lines});
+  String backgroundUrl;
+
+  String textAreaBackgroundColor;
+
+  Conversation(
+      {required this.name, required this.lines, this.backgroundUrl = '', this.textAreaBackgroundColor = "#00000000"});
 
   factory Conversation.fromJson(Map<String, dynamic> json) => _$ConversationFromJson(json);
   Map<String, dynamic> toJson() => _$ConversationToJson(this);

@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
+import 'package:dialog_utility/models/project.dart';
 import 'package:dialog_utility/pages/character_detail_page.dart';
 import 'package:flutter/material.dart';
 
 class CharactersPage extends StatefulWidget {
-  const CharactersPage({super.key});
+  const CharactersPage(this.project, {super.key});
+
+  final Project project;
 
   @override
   State<CharactersPage> createState() => _CharactersPageState();
@@ -13,13 +15,22 @@ class CharactersPage extends StatefulWidget {
 
 class _CharactersPageState extends State<CharactersPage> {
   Character? _selected;
+
+  late CollectionReference charactersRef;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
+    charactersRef = FirebaseFirestore.instance.collection('projects/${widget.project.id}/characters');
     return StreamBuilder(
-      stream: FirebaseFirestore.instance.collection('characters').snapshots(),
+      stream: charactersRef.snapshots(),
       builder: (context, snapshot) {
         final characters = snapshot.hasData
-            ? snapshot.data!.docs.map((e) => Character.fromJson(e.data())..id = e.id).toList()
+            ? snapshot.data!.docs.map((e) => Character.fromJson(e.data() as dynamic)..id = e.id).toList()
             : <Character>[];
         return Row(
           children: [
@@ -50,6 +61,7 @@ class _CharactersPageState extends State<CharactersPage> {
             ),
             if (_selected != null)
               CharacterDetailPage(
+                widget.project,
                 _selected!,
                 key: ValueKey(_selected),
               )

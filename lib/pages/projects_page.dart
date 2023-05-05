@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dialog_utility/dialogs/add_project_dialog.dart';
 import 'package:dialog_utility/models/app_user.dart';
 import 'package:dialog_utility/models/project.dart';
+import 'package:dialog_utility/providers/selected_project_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +30,12 @@ class _ProjectsPageState extends State<ProjectsPage> {
           )
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+          onPressed: () => showDialog(
+                context: context,
+                builder: (context) => const AddProjectDialog(),
+              ),
+          child: const Icon(Icons.add)),
       body: StreamBuilder(
         stream: userRef.doc(FirebaseAuth.instance.currentUser!.uid).snapshots(),
         builder: (context, userSnapshot) {
@@ -46,13 +54,18 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   child: Text("Loading"),
                 );
               }
-              final projects = snapshot.data!.docs.map((e) => Project.fromJson(e.data() as dynamic)).toList();
+              final projects =
+                  snapshot.data!.docs.map((e) => Project.fromJson(e.data() as dynamic)..id = e.id).toList();
               return ListView.builder(
                 itemCount: projects.length,
                 itemBuilder: (context, index) {
                   var project = projects[index];
-                  ListTile(
+                  return ListTile(
                     title: Text(project.name),
+                    onTap: () {
+                      selectedProjectId = project.id;
+                      context.push('/projects/${project.id}');
+                    },
                   );
                 },
               );

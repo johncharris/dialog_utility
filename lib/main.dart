@@ -1,16 +1,17 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/models/app_user.dart';
-import 'package:dialog_utility/pages/characters_page.dart';
-import 'package:dialog_utility/pages/conversation_viewer_page.dart';
-import 'package:dialog_utility/pages/conversations_page.dart';
+import 'package:dialog_utility/pages/project_page.dart';
 import 'package:dialog_utility/pages/projects_page.dart';
+import 'package:dialog_utility/pages/view_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
+import 'package:meta_seo/meta_seo.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'firebase_options.dart';
 
@@ -21,6 +22,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   setPathUrlStrategy();
+  if (kIsWeb) {
+    MetaSEO().config();
+  }
   runApp(MyApp(savedThemeMode: savedThemeMode));
 }
 
@@ -39,6 +43,13 @@ class _MyAppState extends State<MyApp> {
       GoRoute(
         path: '/',
         builder: (context, state) => const ProjectsPage(),
+      ),
+      GoRoute(
+        path: '/projects/:projectId',
+        builder: (context, state) {
+          var projectId = state.pathParameters['projectId'];
+          return ProjectPage(projectId!);
+        },
       ),
       GoRoute(
         path: '/profile',
@@ -78,9 +89,16 @@ class _MyAppState extends State<MyApp> {
             })
           ],
         ),
-      )
+      ),
+      GoRoute(
+        path: '/view',
+        builder: (context, state) => ViewPage(state.queryParameters['p']!, state.queryParameters['c']!),
+      ),
     ],
     redirect: (context, state) {
+      if (state.matchedLocation == '/view') {
+        return null;
+      }
       if (FirebaseAuth.instance.currentUser == null) {
         return '/signin';
       }
@@ -106,54 +124,6 @@ class _MyAppState extends State<MyApp> {
         theme: theme,
         darkTheme: darkTheme,
         routerConfig: _router,
-      ),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dialog Manager"),
-        actions: [
-          IconButton(onPressed: () => AdaptiveTheme.of(context).toggleThemeMode(), icon: const Icon(Icons.light_mode)),
-          IconButton(
-            onPressed: () => context.push('/profile'),
-            icon: const Icon(Icons.person),
-          )
-        ],
-      ),
-      body: Row(
-        children: [
-          NavigationRail(
-              onDestinationSelected: (value) => setState(() => _selectedIndex = value),
-              destinations: const [
-                NavigationRailDestination(icon: Icon(Icons.people), label: Text("Characters")),
-                NavigationRailDestination(icon: Icon(Icons.chat), label: Text("Conversations")),
-                NavigationRailDestination(icon: Icon(Icons.play_arrow), label: Text("Preview")),
-                // NavigationRailDestination(icon: Icon(Icons.import_export), label: Text("Export"))
-              ],
-              selectedIndex: _selectedIndex),
-          const VerticalDivider(
-            thickness: 1,
-            width: 1,
-          ),
-          if (_selectedIndex == 0) const Expanded(child: CharactersPage()),
-          if (_selectedIndex == 1) const Expanded(child: ConversationsPage()),
-          if (_selectedIndex == 2) const Expanded(child: ConversationViewerPage()),
-          // if (_selectedIndex == 3) const Expanded(child: ExportPage()),
-        ],
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/conversation.dart';
+import 'package:dialog_utility/models/project.dart';
 import 'package:dialog_utility/pages/conversation_detail_page.dart';
 import 'package:flutter/material.dart';
 
 class ConversationsPage extends StatefulWidget {
-  const ConversationsPage({super.key});
+  const ConversationsPage(this.project, {super.key});
+  final Project project;
 
   @override
   State<ConversationsPage> createState() => _ConversationsPageState();
@@ -15,7 +17,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: conversationsRef.snapshots(),
+        stream: widget.project.conversationsRef.snapshots(),
         builder: (context, value) => Builder(builder: (context) {
               var conversations = value.hasData
                   ? value.data!.docs
@@ -29,7 +31,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
                     child: Scaffold(
                       floatingActionButton: FloatingActionButton(
                           onPressed: () async {
-                            var ref = await conversationsRef.add(Conversation(name: "Nameless", lines: []).toJson());
+                            var ref = await widget.project.conversationsRef
+                                .add(Conversation(name: "Nameless", lines: []).toJson());
                           },
                           child: const Icon(Icons.add)),
                       body: ListView.builder(
@@ -52,6 +55,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   if (_selectedKey != null)
                     Expanded(
                       child: ConversationDetailPage(
+                        widget.project,
                         _selectedKey!,
                         key: ValueKey(_selectedKey),
                       ),
@@ -76,7 +80,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   _deleteConversation(Conversation conversation) async {
-    await conversationsRef.doc(conversation.id).delete();
+    await widget.project.conversationsRef.doc(conversation.id).delete();
 
     if (!mounted) return;
 

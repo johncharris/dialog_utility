@@ -16,6 +16,9 @@ class Project {
   @JsonKey(includeFromJson: false, includeToJson: false)
   late CollectionReference conversationsRef;
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  late CollectionReference charactersRef;
+
   Project(
       {required this.id, required this.ownerId, required this.name, required this.imageUrl, required this.description});
 
