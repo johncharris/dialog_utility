@@ -6,6 +6,7 @@ import 'package:dialog_utility/models/project.dart';
 import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 
 class CharacterDetailPage extends StatefulWidget {
   const CharacterDetailPage(this.project, this.character, {super.key});
@@ -40,7 +41,7 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                 width: 300,
                 child: Column(children: [
                   TextFormField(
-                    decoration: const InputDecoration(label: Text("Short Name")),
+                    decoration: const InputDecoration(label: Text("Alias")),
                     initialValue: _character.handle,
                     onChanged: (value) async {
                       _character.handle = value;
@@ -55,25 +56,37 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                       writeCharacter();
                     },
                   ),
+                  ColorPicker(
+                    showColorCode: true,
+                    pickersEnabled: const {ColorPickerType.wheel: true, ColorPickerType.accent: false},
+                    onColorChanged: (value) => _character.color = value.value,
+                    onColorChangeEnd: (value) => writeCharacter(),
+                    color: Color(_character.color ?? Colors.blue.value),
+                  )
                 ]),
               ),
             ),
             Expanded(
               child: DropRegion(
+                  hitTestBehavior: HitTestBehavior.opaque,
                   formats: const [Formats.png, Formats.jpeg, Formats.svg],
                   onDropOver: (event) => DropOperation.copy,
                   onPerformDrop: (event) async {
                     final item = event.session.items.first;
 
                     final reader = item.dataReader!;
-                    if (reader.canProvide(Formats.png)) {
-                      reader.getFile(Formats.png, (file) async {
+                    if (reader.canProvide(Formats.png) || reader.canProvide(Formats.jpeg)) {
+                      var format = reader.canProvide(Formats.png) ? Formats.png : Formats.jpeg;
+
+                      reader.getFile(format, (file) async {
                         var fileStream = file.getStream();
                         var bytes = await fileStream.first;
                         // upload image to Firebase Storage
-                        Reference storageRef =
-                            FirebaseStorage.instance.ref().child('characterPictures/${uuid.v4()}.png');
-                        UploadTask uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: "image/png"));
+                        Reference storageRef = FirebaseStorage.instance
+                            .ref()
+                            .child('characterPictures/${uuid.v4()}.${format == Formats.png ? "png" : "jpeg"}');
+                        UploadTask uploadTask =
+                            storageRef.putData(bytes, SettableMetadata(contentType: format.mimeTypes!.first));
                         TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
 
                         // get image URL

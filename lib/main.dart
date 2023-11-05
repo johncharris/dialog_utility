@@ -92,7 +92,15 @@ class _MyAppState extends State<MyApp> {
       ),
       GoRoute(
         path: '/view',
-        builder: (context, state) => ViewPage(state.queryParameters['p']!, state.queryParameters['c']!),
+        builder: (context, state) {
+          if (kIsWeb) {
+            var meta = MetaSEO();
+            meta.ogTitle(ogTitle: "GO Title");
+            meta.ogDescription(ogDescription: "GO OG Description");
+            meta.description(description: "GO Description");
+          }
+          return ViewPage(state.uri.queryParameters['p']!, state.uri.queryParameters['c']!);
+        },
       ),
     ],
     redirect: (context, state) {

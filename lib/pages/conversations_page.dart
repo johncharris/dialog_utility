@@ -1,4 +1,3 @@
-import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/models/project.dart';
 import 'package:dialog_utility/pages/conversation_detail_page.dart';
@@ -17,7 +16,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: widget.project.conversationsRef.snapshots(),
+        stream: widget.project.conversationsRef.orderBy("name").snapshots(),
         builder: (context, value) => Builder(builder: (context) {
               var conversations = value.hasData
                   ? value.data!.docs

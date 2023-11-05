@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dialog_utility/dialogs/story_end_dialog.dart';
 import 'package:dialog_utility/models/character.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/widgets/loading.dart';
 import 'package:flutter/material.dart';
-import 'package:meta_seo/meta_seo.dart';
 
 import '../widgets/conversation_viewer.dart';
 
@@ -39,12 +39,12 @@ class _ViewPageState extends State<ViewPage> {
         .map((e) => Character.fromJson(e.data()))
         .toList();
 
-    var seo = MetaSEO();
-    seo.ogTitle(ogTitle: _conversation!.name);
-    seo.ogImage(ogImage: _characters!.first.pictures.first.imageUrl);
-
     setState(() {
-      _viewerController = ConversationViewerController(_conversation!, _characters!);
+      _viewerController = ConversationViewerController(
+        _conversation!,
+        _characters!,
+        onFinished: () => _showFinishedDialog(),
+      );
     });
   }
 
@@ -54,6 +54,7 @@ class _ViewPageState extends State<ViewPage> {
       body: Builder(builder: (context) {
         if (_viewerController == null) return const Center(child: Loading());
         return Column(
+          key: ValueKey(_viewerController),
           children: [
             Expanded(
               child: Center(
@@ -70,5 +71,22 @@ class _ViewPageState extends State<ViewPage> {
         );
       }),
     );
+  }
+
+  _showFinishedDialog() async {
+    var result = await showDialog<String>(
+      context: context,
+      builder: (context) => StoryEndDialog(_conversation!),
+    );
+
+    if (result == "restart") {
+      setState(() {
+        _viewerController = ConversationViewerController(
+          _conversation!,
+          _characters!,
+          onFinished: () => _showFinishedDialog(),
+        );
+      });
+    }
   }
 }

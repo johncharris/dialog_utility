@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/models/conversation_line.dart';
 
 import 'package:json_annotation/json_annotation.dart';

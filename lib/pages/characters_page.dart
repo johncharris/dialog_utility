@@ -27,7 +27,7 @@ class _CharactersPageState extends State<CharactersPage> {
   Widget build(BuildContext context) {
     charactersRef = FirebaseFirestore.instance.collection('projects/${widget.project.id}/characters');
     return StreamBuilder(
-      stream: charactersRef.snapshots(),
+      stream: charactersRef.orderBy("name").snapshots(),
       builder: (context, snapshot) {
         final characters = snapshot.hasData
             ? snapshot.data!.docs.map((e) => Character.fromJson(e.data() as dynamic)..id = e.id).toList()

@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dialog_utility/models/character.dart';
+import 'package:dialog_utility/models/conversation.dart';
+import 'package:dialog_utility/models/dto/project_dto.dart';
 import 'package:dialog_utility/models/project.dart';
 import 'package:dialog_utility/pages/characters_page.dart';
 import 'package:dialog_utility/pages/conversation_viewer_page.dart';
@@ -35,6 +40,7 @@ class _ProjectPageState extends State<ProjectPage> {
       appBar: AppBar(
         title: const Text("Dialog Manager"),
         actions: [
+          IconButton(onPressed: () => _export(), icon: const Icon(Icons.import_export)),
           IconButton(onPressed: () => AdaptiveTheme.of(context).toggleThemeMode(), icon: const Icon(Icons.light_mode)),
           IconButton(
             onPressed: () => context.push('/profile'),
@@ -74,5 +80,31 @@ class _ProjectPageState extends State<ProjectPage> {
         },
       ),
     );
+  }
+
+  _export() async {
+    final project = Project.fromJson((await projectRef.get() as dynamic).data()!);
+    project.charactersRef = projectRef.collection("characters");
+    project.conversationsRef = projectRef.collection("conversations");
+    final characters =
+        (await project.charactersRef.get()).docs.map((e) => Character.fromJson(e.data() as dynamic)).toList();
+    final conversations =
+        (await project.conversationsRef.get()).docs.map((e) => Conversation.fromJson(e.data() as dynamic)).toList();
+
+    var dto = ProjectDto.fromProject(project, characters, conversations);
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("JSON"),
+        content: TextFormField(
+          initialValue: jsonEncode(dto.toJson()),
+        ),
+      ),
+    );
+
+    // Clipboard.setData(ClipboardData(text: jsonEncode(dto.toJson())));
   }
 }

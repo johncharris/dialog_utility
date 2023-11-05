@@ -1,4 +1,5 @@
 import 'package:dialog_utility/models/conversation.dart';
+import 'package:dialog_utility/utils/share_util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -12,18 +13,18 @@ class ShareConversationDialog extends StatefulWidget {
 }
 
 class _ShareConversationDialogState extends State<ShareConversationDialog> {
-  String get _link => "https://dialog-manager-9f243.web.app/view?p=${widget.projectId}&c=${widget.conversation.id}";
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text("Share Conversation"),
       content: TextFormField(
-        initialValue: _link,
+        initialValue: getShareLink(widget.conversation),
         enabled: false,
       ),
       actions: [
-        TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: _link)), child: const Text("Copy")),
+        TextButton(
+            onPressed: () => Clipboard.setData(ClipboardData(text: getShareLink(widget.conversation))),
+            child: const Text("Copy")),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
       ],
     );

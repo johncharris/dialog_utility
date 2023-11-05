@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character_picture.dart';
 import 'package:firebase_storage/firebase_storage.dart';

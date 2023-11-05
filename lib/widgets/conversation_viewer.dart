@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:darq/darq.dart';
-import 'package:dialog_utility/db_manager.dart';
 import 'package:dialog_utility/models/character.dart';
 import 'package:dialog_utility/models/character_picture.dart';
 import 'package:dialog_utility/models/conversation.dart';
 import 'package:dialog_utility/models/conversation_line.dart';
+import 'package:dialog_utility/models/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,50 +23,54 @@ class _ConversationViewerState extends State<ConversationViewer> {
   _DisplayCharacter? leftCharacter;
   _DisplayCharacter? rightCharacter;
 
-  TextAlign _lastAlign = TextAlign.center;
+  final TextAlign _lastAlign = TextAlign.center;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<int>(
         stream: widget.controller.indexStream,
         builder: (context, snapshot) {
-          var textAlign = TextAlign.center;
-
           var line = widget.controller.currentLine;
-          if (line?.characterId != null) {
-// assign the character based on left or right being availible
-            if (leftCharacter?.character?.id == line!.characterId) {
-              textAlign = TextAlign.left;
-            } else if (rightCharacter?.character?.id == line.characterId) {
-              textAlign = TextAlign.right;
-            } else {
-              // No existing character was found we need to add one.
-              var lineCharacter = widget.controller.characters.firstWhereOrDefault((c) => c.id == line.characterId);
-              if (_lastAlign != TextAlign.left) {
-                leftCharacter = _DisplayCharacter(lineCharacter, line.characterName ?? '',
-                    lineCharacter?.pictures.firstWhereOrDefault((value) => value.id == line.characterPicId));
-                textAlign = TextAlign.left;
-                _lastAlign = TextAlign.left;
-              } else {
-                rightCharacter = _DisplayCharacter(lineCharacter, line.characterName ?? '',
-                    lineCharacter?.pictures.firstWhereOrDefault((value) => value.id == line.characterPicId));
-                textAlign = TextAlign.right;
-                _lastAlign = TextAlign.right;
-              }
-            }
+
+          var left = widget.controller.characters.firstWhereOrDefault((c) => c.id == line!.leftCharacterId);
+          if (left == null) {
+            leftCharacter = null;
+          } else {
+            leftCharacter = _DisplayCharacter(
+                left,
+                line!.leftCharacterName ?? '',
+                left.pictures.firstWhereOrDefault(
+                    (value) => value.id == (line.leftCharacterPicId ?? left.defaultPictureId ?? '')));
           }
+
+          var right = widget.controller.characters.firstWhereOrDefault((c) => c.id == line!.rightCharacterId);
+          if (right == null) {
+            rightCharacter = null;
+          } else {
+            rightCharacter = _DisplayCharacter(
+                right,
+                line!.rightCharacterName ?? '',
+                right.pictures.firstWhereOrDefault(
+                    (value) => value.id == (line.rightCharacterPicId ?? right.defaultPictureId ?? '')));
+          }
+
+          var speaker = line!.speakerPosition == CharacterPosition.left
+              ? left
+              : line.speakerPosition == CharacterPosition.right
+                  ? right
+                  : null;
 
           return Builder(
             builder: (context) {
               final mq = MediaQuery.of(context);
               bool isTall = mq.size.height > mq.size.width;
-              return isTall ? _getTallLayout(line, textAlign) : _getWideLayout(line, textAlign);
+              return isTall ? _getTallLayout(line, speaker) : _getWideLayout(line, speaker);
             },
           );
         });
   }
 
-  Widget _getTallLayout(ConversationLine? line, TextAlign textAlign) {
+  Widget _getTallLayout(ConversationLine? line, Character? speaker) {
     return Stack(
       children: [
         if (widget.controller.conversation.backgroundUrl.isNotEmpty)
@@ -89,19 +91,21 @@ class _ConversationViewerState extends State<ConversationViewer> {
                   child: FittedBox(
                       child: Padding(
                     padding: const EdgeInsets.all(20.0),
-                    child: _getCharacterView(leftCharacter, true, line?.characterId == leftCharacter?.character?.id),
+                    child:
+                        _getCharacterView(leftCharacter, true, line?.leftCharacterId == leftCharacter?.character?.id),
                   )),
                 )),
                 Expanded(
                     child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                        child: _getAnimatedDialogText(textAlign, true))),
+                        child: _getAnimatedDialogText(line!.speakerPosition, true, speaker))),
                 Expanded(
                     child: SizedBox.expand(
                         child: FittedBox(
                             child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: _getCharacterView(rightCharacter, false, line?.characterId == rightCharacter?.character?.id),
+                  child:
+                      _getCharacterView(rightCharacter, false, line.leftCharacterId == rightCharacter?.character?.id),
                 ))))
               ],
             ),
@@ -111,7 +115,13 @@ class _ConversationViewerState extends State<ConversationViewer> {
     );
   }
 
-  Widget _getWideLayout(ConversationLine? line, TextAlign textAlign) {
+  Widget _getWideLayout(ConversationLine? line, Character? speaker) {
+    TextAlign textAlign = line!.speakerPosition == CharacterPosition.left
+        ? TextAlign.left
+        : line.speakerPosition == CharacterPosition.right
+            ? TextAlign.right
+            : TextAlign.center;
+
     return FittedBox(
       child: Container(
         decoration: BoxDecoration(border: Border.all(color: Colors.accents.first, width: 1)),
@@ -138,7 +148,7 @@ class _ConversationViewerState extends State<ConversationViewer> {
                     Expanded(
                       child: Center(
                           child: _getCharacterView(
-                              leftCharacter, true, line?.characterId == leftCharacter?.character?.id)),
+                              leftCharacter, true, line.leftCharacterId == leftCharacter?.character?.id)),
                     ),
                     SizedBox(
                       width: 1000,
@@ -148,12 +158,12 @@ class _ConversationViewerState extends State<ConversationViewer> {
                             : textAlign == TextAlign.right
                                 ? Alignment.centerRight
                                 : Alignment.center,
-                        child: _getAnimatedDialogText(textAlign, false),
+                        child: _getAnimatedDialogText(line.speakerPosition, false, speaker),
                       ),
                     ),
                     Expanded(
-                      child:
-                          _getCharacterView(rightCharacter, false, line?.characterId == rightCharacter?.character?.id),
+                      child: _getCharacterView(
+                          rightCharacter, false, line.leftCharacterId == rightCharacter?.character?.id),
                     )
                   ],
                 ),
@@ -165,14 +175,19 @@ class _ConversationViewerState extends State<ConversationViewer> {
     );
   }
 
-  Widget _getAnimatedDialogText(TextAlign textAlign, bool isTall) {
+  Widget _getAnimatedDialogText(CharacterPosition speakerPosition, bool isTall, Character? speaker) {
+    TextAlign textAlign = speakerPosition == CharacterPosition.left
+        ? TextAlign.left
+        : speakerPosition == CharacterPosition.right
+            ? TextAlign.right
+            : TextAlign.center;
     var w = Hero(
       tag: "textBox",
       child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(5),
-              gradient: LinearGradient(colors: [Colors.blue, Colors.blue.shade600]),
+              color: Color(speaker?.color ?? Colors.blue.value),
               boxShadow: const [BoxShadow(blurRadius: 20, offset: Offset(10, 10), color: Colors.black54)]),
           child: SingleChildScrollView(
             child: TextAnimator(
@@ -246,6 +261,7 @@ class ConversationViewerController {
   late Conversation conversation;
   late List<Character> characters;
   List<ConversationLine>? lines;
+  VoidCallback? onFinished;
 
   final indexStreamController = StreamController<int>.broadcast();
   Stream<int> get indexStream => indexStreamController.stream;
@@ -264,19 +280,22 @@ class ConversationViewerController {
   }
 
   ConversationLine? get nextLine {
-    if (lines == null || index >= lines!.length + 1) return null;
+    if (lines == null || index >= lines!.length - 1) return null;
     return lines![index + 1];
   }
 
   bool next() {
-    if (nextLine == null) return false;
+    if (nextLine == null) {
+      onFinished?.call();
+      return false;
+    }
 
     index++;
     indexStreamController.add(index);
     return true;
   }
 
-  ConversationViewerController(this.conversation, this.characters) {
+  ConversationViewerController(this.conversation, this.characters, {this.onFinished}) {
     lines = conversation.lines.orderBy((element) => element.sortOrder).toList();
   }
 }

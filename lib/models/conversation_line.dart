@@ -1,3 +1,4 @@
+import 'package:dialog_utility/models/enums.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'conversation_line.g.dart';
@@ -10,12 +11,15 @@ class ConversationLine {
 
   bool isRichText = false;
 
-  String? characterId;
-  String? characterName;
+  String? leftCharacterId;
+  String? leftCharacterName;
+  String? leftCharacterPicId;
+  String? rightCharacterId;
+  String? rightCharacterName;
+  String? rightCharacterPicId;
+  CharacterPosition speakerPosition;
 
-  String? characterPicId;
-
-  ConversationLine(this.text, {this.characterId, this.characterName});
+  ConversationLine(this.text, {this.speakerPosition = CharacterPosition.none});
 
   factory ConversationLine.fromJson(Map<String, dynamic> json) => _$ConversationLineFromJson(json);
   Map<String, dynamic> toJson() => _$ConversationLineToJson(this);

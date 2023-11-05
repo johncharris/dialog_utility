@@ -13,7 +13,9 @@ Character _$CharacterFromJson(Map<String, dynamic> json) => Character(
       pictures: (json['pictures'] as List<dynamic>)
           .map((e) => CharacterPicture.fromJson(e as Map<String, dynamic>))
           .toList(),
-    )..defaultPictureId = json['defaultPictureId'] as String?;
+    )
+      ..defaultPictureId = json['defaultPictureId'] as String?
+      ..color = json['color'] as int?;
 
 Map<String, dynamic> _$CharacterToJson(Character instance) => <String, dynamic>{
       'id': instance.id,
@@ -21,4 +23,5 @@ Map<String, dynamic> _$CharacterToJson(Character instance) => <String, dynamic>{
       'handle': instance.handle,
       'pictures': instance.pictures.map((e) => e.toJson()).toList(),
       'defaultPictureId': instance.defaultPictureId,
+      'color': instance.color,
     };

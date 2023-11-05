@@ -16,6 +16,8 @@ class Character {
 
   String? defaultPictureId;
 
+  int? color;
+
   Character({this.id, required this.name, required this.handle, required this.pictures});
 
   factory Character.fromJson(Map<String, dynamic> json) => _$CharacterFromJson(json);
